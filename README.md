@@ -16,7 +16,7 @@ satellite imagery.
 
 ## Development
 
-Clone the repository inside QGIS plugin directory. On Ubuntu this would be
+Clone the repository inside QGIS plugin directory.  On Ubuntu this would be
 `~/.qgis2/python/plugins/`:
 
 ```
@@ -25,20 +25,20 @@ git clone https://github.com/dymaxionlabs/massive-change-detection
 cd massive-change-detection
 ```
 
-Now create a virtual environment for test and code coverage:
+Now create a virtual environment and install packages for test and code
+coverage.  You will need virtualenv and pip installed.
 
 ```
 virtualenv .venv/
 source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-If you installed QGIS from a package manager you can skip the following step.
-Otherwise, use `scripts/run-env-linux.sh` to set up the environment variables
-and Python can find your QGIS. For example, if you have it installed on
-`/opt/qgis`:
+Finally, use `scripts/run-env-linux.sh` to set up the environment variables so
+that Python can find QGIS inside your virtual environment.
 
 ```
-source scripts/run-env-linux.sh /opt/qgis
+source scripts/run-env-linux.sh /usr
 ```
 
 Run tests and build code coverage reports with `make test`.
