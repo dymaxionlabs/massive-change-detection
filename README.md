@@ -32,12 +32,13 @@ virtualenv .venv/
 source .venv/bin/activate
 ```
 
-Then use the `scripts/run-env-linux.sh` script for configuring `PYTHONPATH` so
-that Python knows where your QGIS is installed. On Ubuntu, when installed using
-`apt-get`, it would be `/usr/share/qgis`:
+If you installed QGIS from a package manager you can skip the following step.
+Otherwise, use `scripts/run-env-linux.sh` to set up the environment variables
+and Python can find your QGIS. For example, if you have it installed on
+`/opt/qgis`:
 
 ```
-source scripts/run-env-linux.sh /usr/share/qgis
+source scripts/run-env-linux.sh /opt/qgis
 ```
 
 Run tests and build code coverage reports with `make test`.
