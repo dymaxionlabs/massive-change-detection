@@ -25,20 +25,18 @@ git clone https://github.com/dymaxionlabs/massive-change-detection
 cd massive-change-detection
 ```
 
-Now create a virtual environment and install packages for test and code
-coverage.  You will need virtualenv and pip installed.
+Install packages for test and code coverage.
 
 ```
-virtualenv .venv/
-source .venv/bin/activate
-pip install -r requirements.txt
+pip install --user -r requirements.txt
 ```
 
-Finally, use `scripts/run-env-linux.sh` to set up the environment variables so
-that Python can find QGIS inside your virtual environment.
+If you have installed QGIS from source use `scripts/run-env-linux.sh` to set up
+the environment variables so that Python can find QGIS inside your virtual
+environment.  For example, if it is `/opt/qgis2`:
 
 ```
-source scripts/run-env-linux.sh /usr
+source scripts/run-env-linux.sh /opt/qgis2
 ```
 
 Run tests and build code coverage reports with `make test`.
