@@ -33,7 +33,7 @@ from PyQt4.QtCore import QSettings
 from qgis.core import QgsVectorFileWriter
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
-from processing.core.parameters import ParameterVector
+from processing.core.parameters import ParameterRaster, ParameterVector, ParameterBoolean, ParameterNumber, ParameterSelection
 from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
 
@@ -56,7 +56,15 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
     # calling from the QGIS console.
 
     OUTPUT_LAYER = 'OUTPUT_LAYER'
-    INPUT_LAYER = 'INPUT_LAYER'
+    INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
+    INPUT_A_LAYER = 'INPUT_A_LAYER'
+    INPUT_B_LAYER = 'INPUT_B_LAYER'
+
+    AUTO_THRESHOLD = 'AUTO_THRESHOLD'
+    THRESHOLD = 'THRESHOLD'
+    FILTER = 'FILTER'
+    FILTER_TYPES = ['NONE', 'MEDIAN', 'GAUSSIAN']
+    FILTER_KERNEL_SIZE = 'FILTER_KERNEL_SIZE'
 
     def defineCharacteristics(self):
         """Here we define the inputs and output of the algorithm, along
@@ -69,10 +77,34 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         # The branch of the toolbox under which the algorithm will appear
         self.group = 'Change Detection'
 
-        # We add the input vector layer. It can have any kind of geometry
-        # It is a mandatory (not optional) one, hence the False argument
-        self.addParameter(ParameterVector(self.INPUT_LAYER,
-            self.tr('Input layer'), [ParameterVector.VECTOR_TYPE_ANY], False))
+        # Main parameters
+        self.addParameter(ParameterRaster(self.INPUT_LOTS_LAYER,
+            self.tr('Input Lots vector layer'), [ParameterVector.VECTOR_TYPE_ANY], False))
+
+        self.addParameter(ParameterRaster(self.INPUT_A_LAYER,
+            self.tr('Input old layer'), [ParameterRaster], False))
+
+        self.addParameter(ParameterRaster(self.INPUT_B_LAYER,
+            self.tr('Input new layer'), [ParameterRaster], False))
+
+        # Threshold parameters
+        self.addParameter(ParameterBoolean(
+            self.AUTO_THRESHOLD,
+            self.tr('Use automatic thresholding'),
+            True))
+        self.addParameter(ParameterNumber(
+            self.THRESHOLD,
+            self.tr('Threshold value (if not automatic)'),
+            0.0, 1.0, 0.5))
+
+        # Filter parameters
+        self.addParameter(ParameterSelection(
+            self.FILTER,
+            self.tr('Filter type'),
+            self.FILTER_TYPES, 1))
+        self.addParameter(ParameterNumber(self.FILTER_KERNEL_SIZE,
+            self.tr('Filter kernel size'),
+            2.0, None, 3.0))
 
         # We add a vector layer as output
         self.addOutput(OutputVector(self.OUTPUT_LAYER,

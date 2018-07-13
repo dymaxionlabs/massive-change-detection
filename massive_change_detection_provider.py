@@ -41,8 +41,7 @@ class MassiveChangeDetectionProvider(AlgorithmProvider):
     def __init__(self):
         AlgorithmProvider.__init__(self)
 
-        # Deactivate provider by default
-        self.activate = False
+        self.activate = True
 
         # Load algorithms
         self.alglist = [MassiveChangeDetectionAlgorithm()]
@@ -81,7 +80,7 @@ class MassiveChangeDetectionProvider(AlgorithmProvider):
     def getDescription(self):
         """This is the provired full name.
         """
-        return 'Algorithms for change detection'
+        return 'Massive Change Detection'
 
     def getIcon(self):
         """We return the default icon.
