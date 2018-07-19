@@ -9,7 +9,8 @@ __copyright__ = '(C) 2018 by Dymaxion Labs'
 __revision__ = '$Format:%H$'
 
 from PyQt4.QtCore import QSettings
-from qgis.core import QgsVectorFileWriter, QgsMessageLog
+from qgis.core import QgsVectorFileWriter, QgsMessageLog, QgsMapLayerRegistry
+from qgis.utils import iface
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
@@ -22,6 +23,10 @@ from osgeo import gdal
 from osgeo.gdalconst import *
 import numpy as np
 import cv2
+import rasterio
+import rasterio.mask
+import fiona
+from shapely.geometry import shape
 
 
 class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
@@ -100,8 +105,11 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
             self.tr('CD table')))
 
     def processAlgorithm(self, progress):
-        """Here is where the processing itself takes place."""
+        self.generateChangeDetectionRaster(progress)
+        self.writeTable(progress)
+        self.log('Done!')
 
+    def generateChangeDetectionRaster(self, progress):
         # The first thing to do is retrieve the values of the parameters
         # entered by the user
         inputAFilename = self.getParameterValue(self.INPUT_A_LAYER)
@@ -126,25 +134,25 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         datasetB = gdal.Open(inputBFilename, GA_ReadOnly)
 
         # For now only operate on the first band only
-        self.log("Read rasters into arrays")
+        self.log('Read rasters into arrays')
         arrayA = self._readIntoArray(datasetA)[0]
         arrayB = self._readIntoArray(datasetB)[0]
 
-        self.log("arrayA shape: {}".format(arrayA.shape))
-        self.log("arrayB shape: {}".format(arrayB.shape))
+        self.log('arrayA shape: {}'.format(arrayA.shape))
+        self.log('arrayB shape: {}'.format(arrayB.shape))
 
         # And now we can process...
         out = self._detectChanges(arrayA, arrayB,
                 threshold=threshold,
                 filterType=filterType,
                 kernelSize=kernelSize)
-        self.log("Output shape: {}".format(out.shape))
+        self.log('Output shape: {}'.format(out.shape))
 
         if not np.any(out):
             raise GeoAlgorithmExecutionException(self.tr('No changed detected. Try to use a lower threshold value or different images'))
 
         # Create output raster dataset
-        driver = gdal.GetDriverByName("GTiff")
+        driver = gdal.GetDriverByName('GTiff')
         outDataset = driver.Create(outputFilename,
                 datasetA.RasterXSize,
                 datasetA.RasterYSize,
@@ -169,14 +177,86 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         datasetA = datasetB = None
         outDataset = None
 
+    def writeTable(self, progress):
+        #lotsLayer = dataobjects.getObjectFromUri(self.getParameterValue(self.INPUT_LOTS_LAYER))
+        #lotsFeatures = vector.features(lotsLayer)
+        #progress.setInfo(self.tr('Processing lot polygons...'))
+        #import itertools
+        #for f in itertools.islice(lotsFeatures, 10):
+            #self.log("{}".format(f))
+
+        cdFilename = self.getOutputValue(self.OUTPUT_RASTER_LAYER)
+        imgFilename = self.getParameterValue(self.INPUT_B_LAYER)
+        lotsFilename = self.getParameterValue(self.INPUT_LOTS_LAYER)
+
+	rows = []
+        with fiona.open(lotsFilename) as lotsDs, rasterio.open(cdFilename) as cdDs, rasterio.open(imgFilename) as imgDs:
+            if lotsDs.crs != cdDs.crs:
+                raise GeoAlgorithmExecutionException(self.tr('Lots vector file has different CRS than rasters: {} != {}').format(lotsDs.crs, cdDs.crs))
+
+            total = 100.0 / len(lotsDs) if len(lotsDs) > 0 else 1
+            progress.setInfo(self.tr('Processing lot features...'))
+
+            invalidGeomCount = 0
+
+            for i, feat in enumerate(lotsDs):
+                progress.setPercentage(int(i * total))
+
+                if not feat['geometry']:
+                    invalidGeomCount += 1
+                else:
+                    # FIXME Replace gid for a parameter
+                    lotId = feat['properties']['gid']
+
+                    # Calculate predominant class and change percentage
+                    try:
+                        cdImg, _ = rasterio.mask.mask(cdDs, [feat['geometry']], crop=True)
+                        img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
+                    except ValueError as err:
+                        self.log(self.tr("Error on gid {}: {} Skipping").format(feat['properties']['gid'], err))
+                        continue
+
+                    totalPixels = np.sum(img[0] > 0)
+                    if totalPixels == 0:
+                        self.log(self.tr("Lot {} has no pixels? Skipping...").format(lotId))
+                        continue
+
+                    count = np.sum(cdImg[0] > 0)
+                    perc = count / float(totalPixels)
+                    # FIXME replace 0.5 for a threshold parameter
+                    changeDetected = perc >= 0.5
+
+                    # Calculate areas
+                    poly = shape(feat['geometry'])
+                    area = poly.area
+                    changedArea = poly.area * perc
+
+                    # Build row
+                    row = {}
+                    row['lot_id'] = lotId
+                    if changeDetected:
+                        row['change'] = 'Y'
+                    else:
+                        row['change'] = 'N'
+                    row['area'] = float(area)
+                    row['changed_area'] = float(changedArea)
+                    row['change_perc'] = perc
+
+                    rows.append(row)
+
+        if invalidGeomCount > 0:
+            self.log(self.tr("{} features skipped because of invalid geometry!").format(invalidGeomCount))
+
+	self.log(str(rows))
+
 	# Now generate output table...
         outputTable = self.getOutputFromName(self.OUTPUT_TABLE_LAYER)
-        writer = outputTable.getTableWriter(['id', 'name'])
-        for i in range(10):
-            writer.addRecord([i, 'name{}'.format(i)])
+        columns = ['lot_id', 'change', 'area', 'changed_area', 'change_perc']
+        writer = outputTable.getTableWriter(columns)
+        for row in rows:
+            writer.addRecord([row[k] for k in columns])
+        del rows
         del writer
-
-        self.log("done!")
 
     def _readIntoArray(self, dataset):
         """Return a numpy array from a GDAL dataset"""
