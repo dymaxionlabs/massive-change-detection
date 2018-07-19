@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__author__ = 'Dymaxion Labs'
+__author__ = 'Damián Silvani'
 __date__ = '2018-06-26'
 __copyright__ = '(C) 2018 by Dymaxion Labs'
 
@@ -22,7 +22,6 @@ if cmd_folder not in sys.path:
 
 
 class MassiveChangeDetectionPlugin:
-
     def __init__(self):
         self.provider = MassiveChangeDetectionProvider()
 
