@@ -296,6 +296,8 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         return dst
 
     def _medianFilter(self, src, kernel_size=3):
+        if kernel_size % 2 == 0:
+            raise GeoAlgorithmExecutionException(self.tr('Kernel size for median filter must be an odd number'))
         return cv2.medianBlur(src, kernel_size)
 
     def _gaussFilter(self, src, kernel_size=3):
