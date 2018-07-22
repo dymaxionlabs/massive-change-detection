@@ -15,7 +15,7 @@ from qgis.utils import iface
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
-from processing.core.parameters import ParameterRaster, ParameterVector, ParameterBoolean, ParameterNumber, ParameterSelection
+from processing.core.parameters import ParameterRaster, ParameterVector, ParameterBoolean, ParameterNumber, ParameterSelection, ParameterTableField
 from processing.core.outputs import OutputRaster, OutputVector, OutputTable
 from processing.tools import dataobjects, vector
 
@@ -50,6 +50,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
     OUTPUT_VECTOR_LAYER = 'OUTPUT_VECTOR_LAYER'
     OUTPUT_TABLE_LAYER = 'OUTPUT_TABLE_LAYER'
     INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
+    INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
     INPUT_A_LAYER = 'INPUT_A_LAYER'
     INPUT_B_LAYER = 'INPUT_B_LAYER'
 
@@ -80,6 +81,9 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
 
         self.addParameter(ParameterRaster(self.INPUT_B_LAYER,
             self.tr('Input new layer'), [ParameterRaster], False))
+
+        self.addParameter(ParameterTableField(self.INPUT_LOT_ID_FIELD,
+            self.tr('Lot id field'), self.INPUT_LOTS_LAYER))
 
         # Threshold parameters
         self.addParameter(ParameterBoolean(
@@ -195,6 +199,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         cdFilename = self.getOutputValue(self.OUTPUT_RASTER_LAYER)
         imgFilename = self.getParameterValue(self.INPUT_B_LAYER)
         lotsFilename = self.getParameterValue(self.INPUT_LOTS_LAYER)
+        lotIdFieldName = self.getParameterValue(self.INPUT_LOT_ID_FIELD)
 
 	rows = []
         with fiona.open(lotsFilename) as lotsDs, rasterio.open(cdFilename) as cdDs, rasterio.open(imgFilename) as imgDs:
@@ -212,15 +217,14 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
                 if not feat['geometry']:
                     invalidGeomCount += 1
                 else:
-                    # FIXME Replace gid for a parameter
-                    lotId = feat['properties']['gid']
+                    lotId = feat['properties'][lotIdFieldName]
 
                     # Calculate predominant class and change percentage
                     try:
                         cdImg, _ = rasterio.mask.mask(cdDs, [feat['geometry']], crop=True)
                         img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
                     except ValueError as err:
-                        self.log(self.tr("Error on gid {}: {} Skipping").format(feat['properties']['gid'], err))
+                        self.log(self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
                         continue
 
                     totalPixels = np.sum(img[0] > 0)
