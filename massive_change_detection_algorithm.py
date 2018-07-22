@@ -60,6 +60,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
     FILTER_TYPES = ['NONE', 'MEDIAN', 'GAUSSIAN']
     FILTER_KERNEL_SIZE = 'FILTER_KERNEL_SIZE'
     GENERATE_CD_VECTOR = 'GENERATE_CD_VECTOR'
+    SELECTION_THRESHOLD = 'SELECTION_THRESHOLD'
 
     def defineCharacteristics(self):
         """Here we define the inputs and output of the algorithm, along
@@ -103,6 +104,11 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         self.addParameter(ParameterNumber(self.FILTER_KERNEL_SIZE,
             self.tr('Filter kernel size'),
             2.0, None, 3.0))
+
+        self.addParameter(ParameterNumber(
+            self.SELECTION_THRESHOLD,
+            self.tr('Lot selection threshold value'),
+            0.0, 1.0, 0.5))
 
         # Outputs (raster and table)
         self.addParameter(ParameterBoolean(
@@ -200,6 +206,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         imgFilename = self.getParameterValue(self.INPUT_B_LAYER)
         lotsFilename = self.getParameterValue(self.INPUT_LOTS_LAYER)
         lotIdFieldName = self.getParameterValue(self.INPUT_LOT_ID_FIELD)
+        selectionThreshold = self.getParameterValue(self.SELECTION_THRESHOLD)
 
 	rows = []
         with fiona.open(lotsFilename) as lotsDs, rasterio.open(cdFilename) as cdDs, rasterio.open(imgFilename) as imgDs:
@@ -234,8 +241,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
 
                     count = np.sum(cdImg[0] > 0)
                     perc = count / float(totalPixels)
-                    # FIXME replace 0.5 for a threshold parameter
-                    changeDetected = perc >= 0.5
+                    changeDetected = perc >= selectionThreshold
 
                     # Calculate areas
                     poly = shape(feat['geometry'])
