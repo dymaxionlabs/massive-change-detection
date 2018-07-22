@@ -16,7 +16,7 @@ from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
 from processing.core.parameters import ParameterRaster, ParameterVector, ParameterBoolean, ParameterNumber, ParameterSelection
-from processing.core.outputs import OutputRaster, OutputTable
+from processing.core.outputs import OutputRaster, OutputVector, OutputTable
 from processing.tools import dataobjects, vector
 
 from osgeo import gdal
@@ -47,6 +47,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
     # calling from the QGIS console.
 
     OUTPUT_RASTER_LAYER = 'OUTPUT_RASTER_LAYER'
+    OUTPUT_VECTOR_LAYER = 'OUTPUT_VECTOR_LAYER'
     OUTPUT_TABLE_LAYER = 'OUTPUT_TABLE_LAYER'
     INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
     INPUT_A_LAYER = 'INPUT_A_LAYER'
@@ -57,6 +58,7 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
     FILTER = 'FILTER'
     FILTER_TYPES = ['NONE', 'MEDIAN', 'GAUSSIAN']
     FILTER_KERNEL_SIZE = 'FILTER_KERNEL_SIZE'
+    GENERATE_CD_VECTOR = 'GENERATE_CD_VECTOR'
 
     def defineCharacteristics(self):
         """Here we define the inputs and output of the algorithm, along
@@ -99,14 +101,26 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
             2.0, None, 3.0))
 
         # Outputs (raster and table)
+        self.addParameter(ParameterBoolean(
+            self.GENERATE_CD_VECTOR,
+            self.tr('Generate changed lots vector file'),
+            True))
         self.addOutput(OutputRaster(self.OUTPUT_RASTER_LAYER,
             self.tr('CD raster')))
+        self.addOutput(OutputVector(self.OUTPUT_VECTOR_LAYER,
+            self.tr('CD vector')))
         self.addOutput(OutputTable(self.OUTPUT_TABLE_LAYER,
             self.tr('CD table')))
 
     def processAlgorithm(self, progress):
         self.generateChangeDetectionRaster(progress)
         self.writeTable(progress)
+
+        mustGenerateChangeVector = self.getParameterValue(self.GENERATE_CD_VECTOR)
+        if mustGenerateChangeVector:
+            progress.setInfo(self.tr('Will generate change detection vector file'))
+            self.writeChangeVector(progress)
+
         self.log('Done!')
 
     def generateChangeDetectionRaster(self, progress):
@@ -178,13 +192,6 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         outDataset = None
 
     def writeTable(self, progress):
-        #lotsLayer = dataobjects.getObjectFromUri(self.getParameterValue(self.INPUT_LOTS_LAYER))
-        #lotsFeatures = vector.features(lotsLayer)
-        #progress.setInfo(self.tr('Processing lot polygons...'))
-        #import itertools
-        #for f in itertools.islice(lotsFeatures, 10):
-            #self.log("{}".format(f))
-
         cdFilename = self.getOutputValue(self.OUTPUT_RASTER_LAYER)
         imgFilename = self.getParameterValue(self.INPUT_B_LAYER)
         lotsFilename = self.getParameterValue(self.INPUT_LOTS_LAYER)
@@ -255,8 +262,10 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
         writer = outputTable.getTableWriter(columns)
         for row in rows:
             writer.addRecord([row[k] for k in columns])
-        del rows
         del writer
+
+    def writeChangeVector(self, progress):
+        pass
 
     def _readIntoArray(self, dataset):
         """Return a numpy array from a GDAL dataset"""
