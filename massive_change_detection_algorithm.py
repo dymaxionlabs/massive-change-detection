@@ -26,7 +26,7 @@ import cv2
 import rasterio
 import rasterio.mask
 import fiona
-from shapely.geometry import shape
+from shapely.geometry import shape, box
 
 
 class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
@@ -220,59 +220,64 @@ class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
             kwargs = dict(driver=lotsDs.driver,
                     crs=lotsDs.crs,
                     schema=newSchema)
+            bbox = box(*cdDs.bounds)
             with fiona.open(outputVector, 'w', **kwargs) as dst:
                 for i, feat in enumerate(lotsDs):
                     progress.setPercentage(int(i * total))
+                    lotId = feat['properties'][lotIdFieldName]
 
+                    # Skip features with invalid geometries
                     if not feat['geometry']:
-                        invalidGeomCount += 1
+                        continue
+
+                    # Skip features that are not inside rasters bounds
+                    poly = shape(feat['geometry'])
+                    if not bbox.contains(poly):
+                        continue
+
+                    # Calculate change percentage
+                    try:
+                        cdImg, _ = rasterio.mask.mask(cdDs, [feat['geometry']], crop=True)
+                        img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
+                    except ValueError as err:
+                        self.log(self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
+                        continue
+
+                    # Skip features with no pixels in raster (too low resolution?)
+                    totalPixels = np.sum(img[0] > 0)
+                    if totalPixels == 0:
+                        self.log(self.tr("Lot {} has no pixels? Skipping...").format(lotId))
+                        continue
+
+                    count = np.sum(cdImg[0] > 0)
+                    perc = count / float(totalPixels)
+                    changeDetected = perc >= selectionThreshold
+
+                    # Calculate areas
+                    poly = shape(feat['geometry'])
+                    area = poly.area
+                    changedArea = poly.area * perc
+
+                    # Build row for table
+                    row = {}
+                    row['lot_id'] = lotId
+                    if changeDetected:
+                        row['change'] = 'Y'
                     else:
-                        lotId = feat['properties'][lotIdFieldName]
+                        row['change'] = 'N'
+                    row['area'] = float(area)
+                    row['changed_area'] = float(changedArea)
+                    row['change_perc'] = float(perc)
 
-                        # Calculate predominant class and change percentage
-                        try:
-                            cdImg, _ = rasterio.mask.mask(cdDs, [feat['geometry']], crop=True)
-                            img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
-                        except ValueError as err:
-                            self.log(self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
-                            continue
+                    writer.addRecord([row[k] for k in columns])
 
-                        totalPixels = np.sum(img[0] > 0)
-                        if totalPixels == 0:
-                            self.log(self.tr("Lot {} has no pixels? Skipping...").format(lotId))
-                            continue
-
-                        count = np.sum(cdImg[0] > 0)
-                        perc = count / float(totalPixels)
-                        changeDetected = perc >= selectionThreshold
-
-                        # Calculate areas
-                        poly = shape(feat['geometry'])
-                        area = poly.area
-                        changedArea = poly.area * perc
-
-                        # Build row
-                        row = {}
-                        row['lot_id'] = lotId
-                        if changeDetected:
-                            row['change'] = 'Y'
-                        else:
-                            row['change'] = 'N'
-                        row['area'] = float(area)
-                        row['changed_area'] = float(changedArea)
-                        row['change_perc'] = float(perc)
-
-                        writer.addRecord([row[k] for k in columns])
-
-                        if changeDetected:
-                            newFeat = feat.copy()
-                            newFeat['properties'] = newFeat['properties'].copy()
-                            newFeat['properties']['changed_area'] = float(changedArea)
-                            newFeat['properties']['change_perc'] = float(perc)
-                            dst.write(newFeat)
-
-        if invalidGeomCount > 0:
-            self.log(self.tr("{} features skipped because of invalid geometry!").format(invalidGeomCount))
+                    # Add feature in output vector file on change
+                    if changeDetected:
+                        newFeat = feat.copy()
+                        newFeat['properties'] = newFeat['properties'].copy()
+                        newFeat['properties']['changed_area'] = float(changedArea)
+                        newFeat['properties']['change_perc'] = float(perc)
+                        dst.write(newFeat)
 
         del writer
 
