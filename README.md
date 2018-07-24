@@ -11,6 +11,12 @@ satellite imagery.
 
 ## Usage
 
+### Generate change detection raster
+
+...
+
+### Build report of changes
+
 ...
 
 
@@ -29,6 +35,7 @@ Install packages for test and code coverage.
 
 ```
 pip install --user -r requirements.txt
+pip install --user -r requirements-dev.txt
 ```
 
 If you have installed QGIS from source use `scripts/run-env-linux.sh` to set up
@@ -40,6 +47,18 @@ source scripts/run-env-linux.sh /opt/qgis2
 ```
 
 Run tests and build code coverage reports with `make test`.
+
+### I18n
+
+You can find the list of supported locales is in the `LOCALES` definition on
+`Makefile`. If you want to add a new language, you have to add it there first.
+
+Prepare translations strings with `make transup`. This command will search all
+translated strings in the repository and generate `.ts` files.
+
+Edit the translations files (files ending in `.ts`) in `i18n/`.
+
+Finally compile translation strings with `make transcompile`.
 
 
 ## Issue tracker
