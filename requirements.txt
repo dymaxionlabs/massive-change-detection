@@ -1,5 +1,5 @@
-cv2
 fiona
 numpy
+opencv-python
 rasterio
 shapely
