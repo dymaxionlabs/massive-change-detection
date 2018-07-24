@@ -1,3 +1,5 @@
-nose
-coverage
-pylint
+cv2
+fiona
+numpy
+rasterio
+shapely
