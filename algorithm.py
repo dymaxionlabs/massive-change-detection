@@ -29,13 +29,7 @@ import fiona
 from shapely.geometry import shape, box
 
 
-class Algorithm(GeoAlgorithm):
-    def log(self, message):
-        ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
-                self.tr(message))
-
-
-class MultibandDifferenceAlgorithm(Algorithm):
+class MultibandDifferenceAlgorithm(GeoAlgorithm):
     """
     This algorithm applies the image difference algorithm over each band in
     the raster.
@@ -52,8 +46,8 @@ class MultibandDifferenceAlgorithm(Algorithm):
     FILTER_KERNEL_SIZE = 'FILTER_KERNEL_SIZE'
 
     def defineCharacteristics(self):
-        self.name = 'Multiband difference'
-        self.group = 'Pixel-based algorithms'
+        self.name = self.tr('Multiband difference')
+        self.group = self.tr('Pixel-based algorithms')
 
         # Main parameters
         self.addParameter(ParameterRaster(self.INPUT_A_LAYER,
@@ -84,6 +78,8 @@ class MultibandDifferenceAlgorithm(Algorithm):
             self.tr('CD raster')))
 
     def processAlgorithm(self, progress):
+        self.progress = progress
+
         # The first thing to do is retrieve the values of the parameters
         # entered by the user
         inputAFilename = self.getParameterValue(self.INPUT_A_LAYER)
@@ -91,7 +87,8 @@ class MultibandDifferenceAlgorithm(Algorithm):
         outputFilename = self.getOutputValue(self.OUTPUT_RASTER_LAYER)
 
         if inputAFilename == inputBFilename:
-            raise GeoAlgorithmExecutionException(self.tr('You must use two different raster images for inputs A and B'))
+            raise GeoAlgorithmExecutionException(
+                self.tr('You must use two different raster images for inputs A and B'))
 
         threshold = self.getParameterValue(self.THRESHOLD)
         autoThreshold = self.getParameterValue(self.AUTO_THRESHOLD)
@@ -107,7 +104,7 @@ class MultibandDifferenceAlgorithm(Algorithm):
         datasetA = gdal.Open(inputAFilename, GA_ReadOnly)
         datasetB = gdal.Open(inputBFilename, GA_ReadOnly)
 
-        self.log('Read rasters into arrays')
+        progress.setInfo(self.tr('Reading rasters into arrays'))
         arrayA = self._readIntoArray(datasetA)
         arrayB = self._readIntoArray(datasetB)
 
@@ -120,7 +117,6 @@ class MultibandDifferenceAlgorithm(Algorithm):
                     threshold=threshold,
                     filterType=filterType,
                     kernelSize=kernelSize)
-            self.log('[{}] Output shape: {}'.format(i+i, cd.shape))
             cds.append(cd)
         cds = np.array(cds)
 
@@ -128,7 +124,8 @@ class MultibandDifferenceAlgorithm(Algorithm):
         out = (np.any(cds > 0, axis=0) * 255).astype(np.uint8)
 
         if not np.any(out):
-            raise GeoAlgorithmExecutionException(self.tr('No changed detected. Try to use a lower threshold value or different images'))
+            raise GeoAlgorithmExecutionException(
+                self.tr('No changed detected. Try to use a lower threshold value or different images'))
 
         # Create output raster dataset
         driver = gdal.GetDriverByName('GTiff')
@@ -155,8 +152,6 @@ class MultibandDifferenceAlgorithm(Algorithm):
         # Clean resources
         datasetA = datasetB = None
         outDataset = None
-
-        self.log('Done!')
 
     def _readIntoArray(self, dataset):
         """Return a numpy array from a GDAL dataset"""
@@ -192,7 +187,8 @@ class MultibandDifferenceAlgorithm(Algorithm):
 
     def _medianFilter(self, src, kernel_size=3):
         if kernel_size % 2 == 0:
-            raise GeoAlgorithmExecutionException(self.tr('Kernel size for median filter must be an odd number'))
+            raise GeoAlgorithmExecutionException(
+                self.tr('Kernel size for median filter must be an odd number'))
         return cv2.medianBlur(src, kernel_size)
 
     def _gaussFilter(self, src, kernel_size=3):
@@ -204,10 +200,11 @@ class MultibandDifferenceAlgorithm(Algorithm):
 
         if threshold:
             res = self._threshold(res, threshold)
-            self.log('Applied manual threshold of value {}'.format(threshold))
+            self.progress.setInfo(
+                self.tr('Applied manual threshold of value {}'.format(threshold)))
         else:
             res = self._otsuThreshold(res)
-            self.log('Applied Otsu threshold')
+            self.progress.setInfo('Applied Otsu threshold')
 
         if filterType == 'GAUSSIAN':
             res = self._gaussFilter(res, kernelSize)
@@ -217,12 +214,12 @@ class MultibandDifferenceAlgorithm(Algorithm):
             raise GeoAlgorithmExecutionException(self.tr('Unhandled filter type: {}').format(filterType))
 
         if filterType:
-            self.log('Applied {} filter with kernel size {}'.format(filterType, kernelSize))
+            self.progress.setInfo('Applied {} filter with kernel size {}'.format(filterType, kernelSize))
 
         return res
 
 
-class GenerateVectorAlgorithm(Algorithm):
+class GenerateVectorAlgorithm(GeoAlgorithm):
     INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
     INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
     INPUT_CD_LAYER = 'INPUT_CD_LAYER'
@@ -302,13 +299,15 @@ class GenerateVectorAlgorithm(Algorithm):
                         cdImg, _ = rasterio.mask.mask(cdDs, [feat['geometry']], crop=True)
                         img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
                     except ValueError as err:
-                        self.log(self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
+                        progress.setText(
+                            self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
                         continue
 
                     # Skip features with no pixels in raster (too low resolution?)
                     totalPixels = np.sum(img[0] > 0)
                     if totalPixels == 0:
-                        self.log(self.tr("Lot {} has no pixels? Skipping...").format(lotId))
+                        progress.setText(
+                            self.tr("Lot {} has no pixels? Skipping...").format(lotId))
                         continue
 
                     count = np.sum(cdImg[0] > 0)
