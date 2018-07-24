@@ -10,7 +10,6 @@ __revision__ = '$Format:%H$'
 
 from PyQt4.QtCore import QSettings
 from qgis.core import QgsVectorFileWriter, QgsMessageLog, QgsMapLayerRegistry
-from qgis.utils import iface
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.ProcessingLog import ProcessingLog
