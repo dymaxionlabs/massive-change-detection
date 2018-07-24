@@ -29,7 +29,7 @@ import fiona
 from shapely.geometry import shape, box
 
 
-class MassiveChangeDetectionAlgorithm(GeoAlgorithm):
+class MultibandDifferenceAlgorithm(GeoAlgorithm):
     """This is an example algorithm that takes a vector layer and
     creates a new one just with just those features of the input
     layer that are selected.

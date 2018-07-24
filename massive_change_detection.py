@@ -13,7 +13,7 @@ import sys
 import inspect
 
 from processing.core.Processing import Processing
-from massive_change_detection_provider import MassiveChangeDetectionProvider
+from .provider import MassiveChangeDetectionProvider
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 

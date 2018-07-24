@@ -10,12 +10,10 @@ __revision__ = '$Format:%H$'
 
 from processing.core.AlgorithmProvider import AlgorithmProvider
 from processing.core.ProcessingConfig import Setting, ProcessingConfig
-from massive_change_detection_algorithm import MassiveChangeDetectionAlgorithm
+from .algorithm import MultibandDifferenceAlgorithm
 
 
 class MassiveChangeDetectionProvider(AlgorithmProvider):
-
-    MY_DUMMY_SETTING = 'MY_DUMMY_SETTING'
 
     def __init__(self):
         AlgorithmProvider.__init__(self)
@@ -23,30 +21,9 @@ class MassiveChangeDetectionProvider(AlgorithmProvider):
         self.activate = True
 
         # Load algorithms
-        self.alglist = [MassiveChangeDetectionAlgorithm()]
+        self.alglist = [MultibandDifferenceAlgorithm()]
         for alg in self.alglist:
             alg.provider = self
-
-    def initializeSettings(self):
-        """In this method we add settings needed to configure our
-        provider.
-
-        Do not forget to call the parent method, since it takes care
-        or automatically adding a setting for activating or
-        deactivating the algorithms in the provider.
-        """
-        AlgorithmProvider.initializeSettings(self)
-        ProcessingConfig.addSetting(Setting('Example algorithms',
-            MassiveChangeDetectionProvider.MY_DUMMY_SETTING,
-            'Example setting', 'Default value'))
-
-    def unload(self):
-        """Setting should be removed here, so they do not appear anymore
-        when the plugin is unloaded.
-        """
-        AlgorithmProvider.unload(self)
-        ProcessingConfig.removeSetting(
-            MassiveChangeDetectionProvider.MY_DUMMY_SETTING)
 
     def getName(self):
         """This is the name that will appear on the toolbox group.
