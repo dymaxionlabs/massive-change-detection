@@ -8,7 +8,7 @@ __copyright__ = '(C) 2018 by Dymaxion Labs'
 
 __revision__ = '$Format:%H$'
 
-from PyQt4.QtCore import QSettings
+from PyQt4.QtCore import QSettings, QCoreApplication, QTranslator
 from qgis.core import QgsVectorFileWriter, QgsMessageLog, QgsMapLayerRegistry
 
 from processing.core.GeoAlgorithm import GeoAlgorithm
@@ -25,10 +25,26 @@ import cv2
 import rasterio
 import rasterio.mask
 import fiona
+import os
 from shapely.geometry import shape, box
 
 
-class MultibandDifferenceAlgorithm(GeoAlgorithm):
+class Algorithm(GeoAlgorithm):
+    def __init__(self):
+        GeoAlgorithm.__init__(self)
+        self.pluginDir = os.path.dirname(os.path.realpath(__file__))
+        self._load_translations()
+
+    def _load_translations(self):
+        locale = QSettings().value("locale/userLocale")[0:2]
+        localePath = os.path.join(self.pluginDir, 'i18n', '{}.qm'.format(locale))
+        if os.path.exists(localePath):
+            translator = QTranslator()
+            translator.load(localePath)
+            QCoreApplication.installTranslator(translator)
+
+
+class MultibandDifferenceAlgorithm(Algorithm):
     """
     This algorithm applies the image difference algorithm over each band in
     the raster.
@@ -218,7 +234,7 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
         return res
 
 
-class GenerateVectorAlgorithm(GeoAlgorithm):
+class GenerateVectorAlgorithm(Algorithm):
     INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
     INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
     INPUT_CD_LAYER = 'INPUT_CD_LAYER'
@@ -229,8 +245,8 @@ class GenerateVectorAlgorithm(GeoAlgorithm):
     SELECTION_THRESHOLD = 'SELECTION_THRESHOLD'
 
     def defineCharacteristics(self):
-        self.name = 'Generate changed lots data'
-        self.group = 'Report'
+        self.name = self.tr('Generate changed lots data')
+        self.group = self.tr('Report')
 
         self.addParameter(ParameterRaster(self.INPUT_CD_LAYER,
             self.tr('Input change detection layer'), [ParameterRaster], False))
@@ -299,14 +315,14 @@ class GenerateVectorAlgorithm(GeoAlgorithm):
                         img, _ = rasterio.mask.mask(imgDs, [feat['geometry']], crop=True)
                     except ValueError as err:
                         progress.setText(
-                            self.tr("Error on lot id {}: {}. Skipping").format(lotId, err))
+                            self.tr('Error on lot id {}: {}. Skipping').format(lotId, err))
                         continue
 
                     # Skip features with no pixels in raster (too low resolution?)
                     totalPixels = np.sum(img[0] > 0)
                     if totalPixels == 0:
                         progress.setText(
-                            self.tr("Lot {} has no pixels? Skipping...").format(lotId))
+                            self.tr('Lot {} has no pixels? Skipping...').format(lotId))
                         continue
 
                     count = np.sum(cdImg[0] > 0)
