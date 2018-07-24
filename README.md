@@ -1,7 +1,7 @@
 # Massive Change Detection - QGIS plugin
 
-QGIS 2.18+ plugin for applying change detection algorithms on high resolution
-satellite imagery.
+QGIS 2 plugin that applies change detection algorithms on satellite imagery for
+building reports for urban planning.
 
 
 ## Install
@@ -81,5 +81,5 @@ For more details, see the file [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Source code is released under a BSD-2 license.  Please refer to
+Source code is released under a GNU GPL v3 license.  Please refer to
 [LICENSE.md](LICENSE.md) for more information.
