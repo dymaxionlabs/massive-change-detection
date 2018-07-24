@@ -10,7 +10,7 @@ __revision__ = '$Format:%H$'
 
 from processing.core.AlgorithmProvider import AlgorithmProvider
 from processing.core.ProcessingConfig import Setting, ProcessingConfig
-from .algorithm import MultibandDifferenceAlgorithm
+from .algorithm import MultibandDifferenceAlgorithm, GenerateVectorAlgorithm
 
 
 class MassiveChangeDetectionProvider(AlgorithmProvider):
@@ -21,7 +21,11 @@ class MassiveChangeDetectionProvider(AlgorithmProvider):
         self.activate = True
 
         # Load algorithms
-        self.alglist = [MultibandDifferenceAlgorithm()]
+        self.alglist = [
+            MultibandDifferenceAlgorithm(),
+            GenerateVectorAlgorithm()
+        ]
+
         for alg in self.alglist:
             alg.provider = self
 

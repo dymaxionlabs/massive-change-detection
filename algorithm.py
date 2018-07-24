@@ -30,61 +30,30 @@ from shapely.geometry import shape, box
 
 
 class MultibandDifferenceAlgorithm(GeoAlgorithm):
-    """This is an example algorithm that takes a vector layer and
-    creates a new one just with just those features of the input
-    layer that are selected.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the GeoAlgorithm class.
+    """
+    This algorithm applies the image difference algorithm over each band in
+    the raster.
     """
 
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
-    OUTPUT_RASTER_LAYER = 'OUTPUT_RASTER_LAYER'
-    OUTPUT_VECTOR_LAYER = 'OUTPUT_VECTOR_LAYER'
-    OUTPUT_TABLE_LAYER = 'OUTPUT_TABLE_LAYER'
-    INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
-    INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
     INPUT_A_LAYER = 'INPUT_A_LAYER'
     INPUT_B_LAYER = 'INPUT_B_LAYER'
+    OUTPUT_RASTER_LAYER = 'OUTPUT_RASTER_LAYER'
 
     AUTO_THRESHOLD = 'AUTO_THRESHOLD'
     THRESHOLD = 'THRESHOLD'
     FILTER = 'FILTER'
     FILTER_TYPES = ['NONE', 'MEDIAN', 'GAUSSIAN']
     FILTER_KERNEL_SIZE = 'FILTER_KERNEL_SIZE'
-    GENERATE_CD_VECTOR = 'GENERATE_CD_VECTOR'
-    SELECTION_THRESHOLD = 'SELECTION_THRESHOLD'
 
     def defineCharacteristics(self):
-        """Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-
-        # The name that the user will see in the toolbox
         self.name = 'Multiband difference'
-
-        # The branch of the toolbox under which the algorithm will appear
-        self.group = 'Change Detection'
+        self.group = 'Pixel-based algorithms'
 
         # Main parameters
-        self.addParameter(ParameterVector(self.INPUT_LOTS_LAYER,
-            self.tr('Input Lots vector layer'), [ParameterVector.VECTOR_TYPE_ANY], False))
-
         self.addParameter(ParameterRaster(self.INPUT_A_LAYER,
             self.tr('Input old layer'), [ParameterRaster], False))
-
         self.addParameter(ParameterRaster(self.INPUT_B_LAYER,
             self.tr('Input new layer'), [ParameterRaster], False))
-
-        self.addParameter(ParameterTableField(self.INPUT_LOT_ID_FIELD,
-            self.tr('Lot id field'), self.INPUT_LOTS_LAYER))
 
         # Threshold parameters
         self.addParameter(ParameterBoolean(
@@ -105,26 +74,10 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
             self.tr('Filter kernel size'),
             2.0, None, 3.0))
 
-        self.addParameter(ParameterNumber(
-            self.SELECTION_THRESHOLD,
-            self.tr('Lot selection threshold value'),
-            0.0, 1.0, 0.5))
-
-        # Outputs raster and table
         self.addOutput(OutputRaster(self.OUTPUT_RASTER_LAYER,
             self.tr('CD raster')))
-        self.addOutput(OutputVector(self.OUTPUT_VECTOR_LAYER,
-            self.tr('CD vector')))
-        self.addOutput(OutputTable(self.OUTPUT_TABLE_LAYER,
-            self.tr('CD table')))
 
     def processAlgorithm(self, progress):
-        self.generateChangeDetectionRaster(progress)
-        self.writeVectorAndTable(progress)
-
-        self.log('Done!')
-
-    def generateChangeDetectionRaster(self, progress):
         # The first thing to do is retrieve the values of the parameters
         # entered by the user
         inputAFilename = self.getParameterValue(self.INPUT_A_LAYER)
@@ -192,9 +145,112 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
         datasetA = datasetB = None
         outDataset = None
 
-    def writeVectorAndTable(self, progress):
-        cdFilename = self.getOutputValue(self.OUTPUT_RASTER_LAYER)
-        imgFilename = self.getParameterValue(self.INPUT_B_LAYER)
+        self.log('Done!')
+
+    def _readIntoArray(self, dataset):
+        """Return a numpy array from a GDAL dataset"""
+        bands = []
+        for i in xrange(dataset.RasterCount):
+            band = dataset.GetRasterBand(i+1).ReadAsArray(0, 0,
+                    dataset.RasterXSize,
+                    dataset.RasterYSize)
+            bands.append(band)
+        return np.array(bands)
+
+    def _normalize(self, img):
+        vmin, vmax = img.min(), img.max()
+        norm_img = (img - vmin) / (vmax - vmin)
+        return norm_img
+
+    def _difference(self, a, b):
+        a = a.astype(np.int32)
+        b = b.astype(np.int32)
+        mean_a, mean_b = a.mean(), b.mean()
+        std_a, std_b = a.std(), b.std()
+
+        b_norm = ((std_a / std_b) * (b - np.ones(b.shape) * mean_b)) + mean_a
+        return np.abs(a - b_norm)
+
+    def log(self, message):
+        ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
+                self.tr(message))
+
+
+    def _threshold(self, src, tau):
+        return (((src > 0) * (src >= tau)) * 255).astype(np.uint8)
+
+    def _otsuThreshold(self, src):
+        src = (src * 255).astype(np.uint8)
+        _, dst = cv2.threshold(src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return dst
+
+    def _medianFilter(self, src, kernel_size=3):
+        if kernel_size % 2 == 0:
+            raise GeoAlgorithmExecutionException(self.tr('Kernel size for median filter must be an odd number'))
+        return cv2.medianBlur(src, kernel_size)
+
+    def _gaussFilter(self, src, kernel_size=3):
+        return cv2.GaussianBlur(src, (kernel_size, kernel_size), 1, 1)
+
+    def _detectChanges(self, img1, img2, threshold=None, filterType=None, kernelSize=3):
+        res = self._difference(img1, img2)
+        res = self._normalize(res)
+
+        if threshold:
+            res = self._threshold(res, threshold)
+            self.log('Applied manual threshold of value {}'.format(threshold))
+        else:
+            res = self._otsuThreshold(res)
+            self.log('Applied Otsu threshold')
+
+        if filterType == 'GAUSSIAN':
+            res = self._gaussFilter(res, kernelSize)
+        elif filterType == 'MEDIAN':
+            res = self._medianFilter(res, kernelSize)
+        else:
+            raise GeoAlgorithmExecutionException(self.tr('Unhandled filter type: {}').format(filterType))
+
+        if filterType:
+            self.log('Applied {} filter with kernel size {}'.format(filterType, kernelSize))
+
+        return res
+
+
+class GenerateVectorAlgorithm(GeoAlgorithm):
+    INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
+    INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
+    INPUT_CD_LAYER = 'INPUT_CD_LAYER'
+    INPUT_IMG_LAYER = 'INPUT_IMG_LAYER'
+    OUTPUT_VECTOR_LAYER = 'OUTPUT_VECTOR_LAYER'
+    OUTPUT_TABLE_LAYER = 'OUTPUT_TABLE_LAYER'
+
+    SELECTION_THRESHOLD = 'SELECTION_THRESHOLD'
+
+    def defineCharacteristics(self):
+        self.name = 'Generate changed lots data'
+        self.group = 'Report'
+
+        self.addParameter(ParameterRaster(self.INPUT_CD_LAYER,
+            self.tr('Input change detection layer'), [ParameterRaster], False))
+        self.addParameter(ParameterRaster(self.INPUT_IMG_LAYER,
+            self.tr('Input image layer'), [ParameterRaster], False))
+        self.addParameter(ParameterVector(self.INPUT_LOTS_LAYER,
+            self.tr('Input Lots vector layer'), [ParameterVector.VECTOR_TYPE_ANY], False))
+        self.addParameter(ParameterTableField(self.INPUT_LOT_ID_FIELD,
+            self.tr('Lot id field'), self.INPUT_LOTS_LAYER))
+        self.addParameter(ParameterNumber(
+            self.SELECTION_THRESHOLD,
+            self.tr('Lot selection threshold value'),
+            0.0, 1.0, 0.5))
+
+        self.addOutput(OutputVector(self.OUTPUT_VECTOR_LAYER,
+            self.tr('CD vector')))
+        self.addOutput(OutputTable(self.OUTPUT_TABLE_LAYER,
+            self.tr('CD table')))
+
+    def processAlgorithm(self, progress):
+        cdFilename = self.getParameterValue(self.INPUT_CD_LAYER)
+        imgFilename = self.getParameterValue(self.INPUT_IMG_LAYER)
         lotsFilename = self.getParameterValue(self.INPUT_LOTS_LAYER)
         lotIdFieldName = self.getParameterValue(self.INPUT_LOT_ID_FIELD)
         selectionThreshold = self.getParameterValue(self.SELECTION_THRESHOLD)
@@ -280,72 +336,3 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
                         dst.write(newFeat)
 
         del writer
-
-
-    def _readIntoArray(self, dataset):
-        """Return a numpy array from a GDAL dataset"""
-        bands = []
-        for i in xrange(dataset.RasterCount):
-            band = dataset.GetRasterBand(i+1).ReadAsArray(0, 0,
-                    dataset.RasterXSize,
-                    dataset.RasterYSize)
-            bands.append(band)
-        return np.array(bands)
-
-    def _normalize(self, img):
-        vmin, vmax = img.min(), img.max()
-        norm_img = (img - vmin) / (vmax - vmin)
-        return norm_img
-
-    def _difference(self, a, b):
-        a = a.astype(np.int32)
-        b = b.astype(np.int32)
-        mean_a, mean_b = a.mean(), b.mean()
-        std_a, std_b = a.std(), b.std()
-
-        b_norm = ((std_a / std_b) * (b - np.ones(b.shape) * mean_b)) + mean_a
-        return np.abs(a - b_norm)
-
-    def log(self, message):
-        ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
-                self.tr(message))
-
-
-    def _threshold(self, src, tau):
-        return (((src > 0) * (src >= tau)) * 255).astype(np.uint8)
-
-    def _otsuThreshold(self, src):
-        src = (src * 255).astype(np.uint8)
-        _, dst = cv2.threshold(src, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        return dst
-
-    def _medianFilter(self, src, kernel_size=3):
-        if kernel_size % 2 == 0:
-            raise GeoAlgorithmExecutionException(self.tr('Kernel size for median filter must be an odd number'))
-        return cv2.medianBlur(src, kernel_size)
-
-    def _gaussFilter(self, src, kernel_size=3):
-        return cv2.GaussianBlur(src, (kernel_size, kernel_size), 1, 1)
-
-    def _detectChanges(self, img1, img2, threshold=None, filterType=None, kernelSize=3):
-        res = self._difference(img1, img2)
-        res = self._normalize(res)
-
-        if threshold:
-            res = self._threshold(res, threshold)
-            self.log('Applied manual threshold of value {}'.format(threshold))
-        else:
-            res = self._otsuThreshold(res)
-            self.log('Applied Otsu threshold')
-
-        if filterType == 'GAUSSIAN':
-            res = self._gaussFilter(res, kernelSize)
-        elif filterType == 'MEDIAN':
-            res = self._medianFilter(res, kernelSize)
-        else:
-            raise GeoAlgorithmExecutionException(self.tr('Unhandled filter type: {}').format(filterType))
-
-        if filterType:
-            self.log('Applied {} filter with kernel size {}'.format(filterType, kernelSize))
-
-        return res
