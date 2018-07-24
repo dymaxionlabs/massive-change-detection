@@ -107,20 +107,25 @@ class MultibandDifferenceAlgorithm(Algorithm):
         datasetA = gdal.Open(inputAFilename, GA_ReadOnly)
         datasetB = gdal.Open(inputBFilename, GA_ReadOnly)
 
-        # For now only operate on the first band only
         self.log('Read rasters into arrays')
-        arrayA = self._readIntoArray(datasetA)[0]
-        arrayB = self._readIntoArray(datasetB)[0]
+        arrayA = self._readIntoArray(datasetA)
+        arrayB = self._readIntoArray(datasetB)
 
-        self.log('arrayA shape: {}'.format(arrayA.shape))
-        self.log('arrayB shape: {}'.format(arrayB.shape))
+        # Calculate image difference on each band
+        cds = []
+        bandCount = arrayA.shape[0]
+        for i in range(bandCount):
+            progress.setInfo(self.tr('Calculate image difference on band {}').format(i+1))
+            cd = self._detectChanges(arrayA[i], arrayB[i],
+                    threshold=threshold,
+                    filterType=filterType,
+                    kernelSize=kernelSize)
+            self.log('[{}] Output shape: {}'.format(i+i, cd.shape))
+            cds.append(cd)
+        cds = np.array(cds)
 
-        # And now we can process...
-        out = self._detectChanges(arrayA, arrayB,
-                threshold=threshold,
-                filterType=filterType,
-                kernelSize=kernelSize)
-        self.log('Output shape: {}'.format(out.shape))
+        # Generate new change detection raster based on results on each band
+        out = (np.any(cds > 0, axis=0) * 255).astype(np.uint8)
 
         if not np.any(out):
             raise GeoAlgorithmExecutionException(self.tr('No changed detected. Try to use a lower threshold value or different images'))
