@@ -29,7 +29,13 @@ import fiona
 from shapely.geometry import shape, box
 
 
-class MultibandDifferenceAlgorithm(GeoAlgorithm):
+class Algorithm(GeoAlgorithm):
+    def log(self, message):
+        ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
+                self.tr(message))
+
+
+class MultibandDifferenceAlgorithm(Algorithm):
     """
     This algorithm applies the image difference algorithm over each band in
     the raster.
@@ -171,11 +177,6 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
         b_norm = ((std_a / std_b) * (b - np.ones(b.shape) * mean_b)) + mean_a
         return np.abs(a - b_norm)
 
-    def log(self, message):
-        ProcessingLog.addToLog(ProcessingLog.LOG_INFO,
-                self.tr(message))
-
-
     def _threshold(self, src, tau):
         return (((src > 0) * (src >= tau)) * 255).astype(np.uint8)
 
@@ -216,7 +217,7 @@ class MultibandDifferenceAlgorithm(GeoAlgorithm):
         return res
 
 
-class GenerateVectorAlgorithm(GeoAlgorithm):
+class GenerateVectorAlgorithm(Algorithm):
     INPUT_LOTS_LAYER = 'INPUT_LOTS_LAYER'
     INPUT_LOT_ID_FIELD = 'INPUT_LOT_ID_FIELD'
     INPUT_CD_LAYER = 'INPUT_CD_LAYER'
