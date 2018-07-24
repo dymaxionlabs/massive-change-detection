@@ -1,6 +1,7 @@
 # Massive Change Detection - QGIS plugin
 
 [![Build Status](https://travis-ci.org/dymaxionlabs/massive-change-detection.svg?branch=master)](https://travis-ci.org/dymaxionlabs/massive-change-detection)
+[![Join the chat at https://gitter.im/dymaxionlabs/massive-change-detection](https://badges.gitter.im/dymaxionlabs/massive-change-detection.svg)](https://gitter.im/dymaxionlabs/massive-change-detection?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 QGIS 2 plugin that applies change detection algorithms on satellite imagery for
 building reports for urban planning.
