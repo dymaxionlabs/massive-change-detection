@@ -3,3 +3,7 @@ numpy
 opencv-python
 rasterio
 shapely
+
+coverage
+nose
+pylint

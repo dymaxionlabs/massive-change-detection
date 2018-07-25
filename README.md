@@ -70,7 +70,6 @@ Install packages for test and code coverage.
 
 ```
 pip install --user -r requirements.txt
-pip install --user -r requirements-dev.txt
 ```
 
 If you have installed QGIS from source use `scripts/run-env-linux.sh` to set up
