@@ -9,10 +9,40 @@ building reports for urban planning.
 
 ## Install
 
-...
+### Add plugins repository
 
+To install this plugin, you need to add our QGIS Repository first.  Go to
+`Plugins -> Manage and Install Plugins`.  On the Settings tab, add a repository
+named `Dymaxion Labs` and use the following URL:
+
+```
+https://dymaxionlabs.github.io/qgis-repository/plugins.xml
+```
+
+Make sure to enable `Show also experimental plugins` there.  After that, press
+`Reload all repositories` button to load our plugins index into QGIS.
+
+### Install external dependencies
+
+This plugin makes use of some additional Python dependencies. In a terminal,
+run the following:
+
+```
+pip install --user massive-change-detection
+```
+
+### Install plugin
+
+Finally, go to `Plugins -> Manage and Install Plugins`, and in `All` or `Not
+Installed` tabs, search for *Massive Change Detection*.  Click `Install
+plugin`.
 
 ## Usage
+
+This is a *processing plugin*, you will have to enable the Processing Toolbox
+on QGIS to use it properly.
+
+...
 
 ### Generate change detection raster
 
@@ -25,8 +55,8 @@ building reports for urban planning.
 
 ## Development
 
-Clone the repository inside QGIS plugin directory.  On Ubuntu this would be
-`~/.qgis2/python/plugins/`:
+Clone the repository inside your QGIS plugin directory.  On Ubuntu this would
+be `~/.qgis2/python/plugins/`:
 
 ```
 cd ~/.qgis2/python/plugins/
