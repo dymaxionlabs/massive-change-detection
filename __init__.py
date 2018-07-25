@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+Massive Change Detection is a QGIS 2 plugin that applies change detection
+algorithms on satellite imagery for building reports for urban planning.
 
-# Massive Change Detection is a QGIS 2 plugin that applies change detection
-# algorithms on satellite imagery for building reports for urban planning.
+.. note:: This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 3 of the License, or
+     (at your option) any later version.
+
+"""
+
 # Copyright (C) 2018  Dymaxion Labs
 #
 # This program is free software: you can redistribute it and/or modify
