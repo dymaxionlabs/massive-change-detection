@@ -12,15 +12,17 @@ building reports for urban planning.
 ### Add plugins repository
 
 To install this plugin, you need to add our QGIS Repository first.  Go to
-`Plugins -> Manage and Install Plugins`.  On the Settings tab, add a repository
-named `Dymaxion Labs` and use the following URL:
+`Plugins -> Manage and Install Plugins`.
+
+On the Settings tab, enable `Show also experimental plugins`, and add a
+repository named `Dymaxion Labs` with the following URL:
 
 ```
 https://dymaxionlabs.github.io/qgis-repository/plugins.xml
 ```
 
-Make sure to enable `Show also experimental plugins` there.  After that, press
-`Reload all repositories` button to load our plugins index into QGIS.
+After that, press `Reload all repositories` button to load our plugins index
+into QGIS.
 
 ### Install external dependencies
 
