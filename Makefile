@@ -231,3 +231,6 @@ pep8:
 	@echo "-----------"
 	@echo "Ignored in PEP8 check:"
 	@echo $(PEP8EXCLUDE)
+
+build_image:
+	@docker build -t dymaxionlabs/massive-change-detection-test-env .

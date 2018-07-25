@@ -1,16 +1,16 @@
 services:
   - docker
 before_install:
-  - docker pull boundlessgeo/qgis-testing-environment:latest
+  - make build_image
 install:
-  - docker run -d --name qgis-testing-environment -v ${TRAVIS_BUILD_DIR}:/tests_directory -e DISPLAY=:99 boundlessgeo/qgis-testing-environment
+  - docker run -d --name qgis-env -v ${TRAVIS_BUILD_DIR}:/tests_directory -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
   - sleep 10
   # Setup qgis and enable the plugin
-  - docker exec -it qgis-testing-environment sh -c "qgis_setup.sh massive-change-detection"
+  - docker exec -it qgis-env sh -c "qgis_setup.sh massive-change-detection"
   # If needd additional steps (for example make or paver setup, place it here)
   #- docker exec -it qgis-testing-environment sh -c "pip install -r requirements.txt && pip install -r requirements-dev.txt"
   # Link the plugin to the tests_directory
-  - docker exec -it qgis-testing-environment sh -c "ln -s /tests_directory /root/.qgis2/python/plugins/massive-change-detection"
+  - docker exec -it qgis-env sh -c "ln -s /tests_directory /root/.qgis2/python/plugins/massive-change-detection"
 
 script:
-  - docker exec -it qgis-testing-environment sh -c "qgis_testrunner.sh massive_change_detection.tests.test_Plugin"
+  - docker exec -it qgis-env sh -c "qgis_testrunner.sh massive_change_detection.tests.test_Plugin"
