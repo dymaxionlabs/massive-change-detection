@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<plugins>
+	<pyqgis_plugin name="Massive Change Detection" version="0.1">
+		<description>QGIS 2 plugin of change detection algorithms for urban planning</description>
+		<homepage>https://github.com/dymaxionlabs/massive-change-detection</homepage>
+		<qgis_minimum_version>2.2</qgis_minimum_version>
+		<file_name>0.1.0.zip</file_name>
+		<author_name>Dymaxion Labs</author_name>
+		<download_url>https://github.com/dymaxionlabs/massive-change-detection/archive/0.1.0.zip</download_url>
+	</pyqgis_plugin>
+</plugins>
