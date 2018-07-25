@@ -28,7 +28,7 @@ This plugin makes use of some additional Python dependencies. In a terminal,
 run the following:
 
 ```
-pip install --user massive-change-detection
+pip install --user fiona numpy opencv-python rasterio shapely
 ```
 
 ### Install plugin
