@@ -37,13 +37,18 @@ LRELEASE = lrelease
 # translation
 SOURCES = \
 	__init__.py \
-	massive_change_detection.py 
+	massive_change_detection.py \
+	provider.py \
+	algorithm.py
 
 PLUGINNAME = MassiveChangeDetection
 
 PY_FILES = \
 	__init__.py \
-	massive_change_detection.py 
+	massive_change_detection.py \
+	provider.py \
+	algorithm.py \
+	setup.py
 
 UI_FILES = 
 
