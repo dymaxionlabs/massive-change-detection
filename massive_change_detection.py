@@ -44,7 +44,10 @@ class MassiveChangeDetectionPlugin:
         Processing.removeProvider(self.provider)
 
     def _load_translations(self):
-        locale = QSettings().value("locale/userLocale")[0:2]
+        full_locale = QSettings().value("locale/userLocale")
+        if not full_locale:
+            return
+        locale = full_locale[0:2]
         localePath = os.path.join(self.pluginDir, 'i18n', '{}.qm'.format(locale))
         if os.path.exists(localePath):
             translator = QTranslator()

@@ -1,16 +1,8 @@
 services:
   - docker
 before_install:
-  - make build_image
+  - make docker_build
 install:
-  - docker run -d --name qgis-env -v ${TRAVIS_BUILD_DIR}:/tests_directory -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
-  - sleep 10
-  # Setup qgis and enable the plugin
-  - docker exec -it qgis-env sh -c "qgis_setup.sh massive-change-detection"
-  # If needd additional steps (for example make or paver setup, place it here)
-  #- docker exec -it qgis-testing-environment sh -c "pip install -r requirements.txt && pip install -r requirements-dev.txt"
-  # Link the plugin to the tests_directory
-  - docker exec -it qgis-env sh -c "ln -s /tests_directory /root/.qgis2/python/plugins/massive-change-detection"
-
+  - BUILD_DIR=${TRAVIS_BUILD_DIR} make docker_prepare
 script:
-  - docker exec -it qgis-env sh -c "qgis_testrunner.sh massive_change_detection.tests.test_Plugin"
+  - make docker_run

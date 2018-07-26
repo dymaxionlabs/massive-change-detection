@@ -23,6 +23,8 @@
 #################################################
 
 
+.PHONY: docker_build docker_prepare docker_run
+
 #Add iso code for any locales you want to support here (space separated)
 # default is no locales
 LOCALES = es
@@ -60,6 +62,8 @@ COMPILED_RESOURCE_FILES =
 
 PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 
+BUILD_DIR := $(PWD)
+
 
 #################################################
 # Normally you would not need to edit below here
@@ -83,13 +87,14 @@ compile: $(COMPILED_RESOURCE_FILES)
 %.qm : %.ts
 	$(LRELEASE) $<
 
-test: compile transcompile
+test: compile
 	@echo
 	@echo "----------------------"
 	@echo "Regression Test Suite"
 	@echo "----------------------"
 
 	@# Preceding dash means that make will continue in case of errors
+	@rm -f .coverage
 	@-export PYTHONPATH=`pwd`:$(PYTHONPATH); \
 		export QGIS_DEBUG=0; \
 		export QGIS_LOG_FILE=/dev/null; \
@@ -232,5 +237,14 @@ pep8:
 	@echo "Ignored in PEP8 check:"
 	@echo $(PEP8EXCLUDE)
 
-build_image:
+docker_build:
 	@docker build -t dymaxionlabs/massive-change-detection-test-env .
+
+docker_prepare:
+	@docker run -d --name qgis-env -v $(BUILD_DIR):/tests_directory/massive_change_detection -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
+	@sleep 3
+	@docker exec -it qgis-env sh -c "qgis_setup.sh massive_change_detection"
+
+docker_run:
+	#@docker exec -it qgis-env sh -c "qgis_testrunner.sh massive_change_detection.test"
+	@docker exec -it qgis-env sh -c "cd /tests_directory/massive_change_detection && make test"
