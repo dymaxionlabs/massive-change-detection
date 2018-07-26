@@ -65,7 +65,9 @@ PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 # Normally you would not need to edit below here
 #################################################
 
-VERSION := $(shell grep 'version=' metadata.txt | cut -d'=' -f2)
+VERSION ?= $(shell grep 'version=' metadata.txt | cut -d'=' -f2)
+
+BUILD_DIR ?= $(CURDIR)
 
 HELP = help/build/html
 
@@ -218,12 +220,12 @@ docker_build:
 	@docker build -t dymaxionlabs/massive-change-detection-test-env .
 
 docker_prepare:
-	@docker run -d --name massive-change-detection-test-env -v $(CURDIR):/tests_directory/$(PLUGINNAME) -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
-	@sleep 3
-	@docker exec -it massive-change-detection-test-env sh -c "qgis_setup.sh $(PLUGINNAME)"
+	docker run -d --name massive-change-detection-test-env -v $(BUILD_DIR):/tests_directory/$(PLUGINNAME) -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
+	sleep 3
+	docker exec -it massive-change-detection-test-env sh -c "qgis_setup.sh $(PLUGINNAME)"
 
 docker_run:
-	@docker exec -it massive-change-detection-test-env sh -c "cd /tests_directory/$(PLUGINNAME) && make test"
+	docker exec -it massive-change-detection-test-env sh -c "cd /tests_directory/$(PLUGINNAME) && make test"
 
 clean:
 	rm -rf dist/
