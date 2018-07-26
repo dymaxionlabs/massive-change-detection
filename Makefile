@@ -23,7 +23,7 @@
 #################################################
 
 
-.PHONY: docker_build docker_prepare docker_run
+.PHONY: docker_build docker_prepare docker_run test
 
 #Add iso code for any locales you want to support here (space separated)
 # default is no locales
@@ -35,7 +35,6 @@ LOCALES = es
 LRELEASE = lrelease
 #LRELEASE = lrelease-qt4
 
-
 # translation
 SOURCES = \
 	__init__.py \
@@ -43,7 +42,7 @@ SOURCES = \
 	provider.py \
 	algorithm.py
 
-PLUGINNAME = massive_change_detection
+PLUGINNAME = massive-change-detection
 
 PY_FILES = \
 	__init__.py \
@@ -61,14 +60,12 @@ EXTRA_DIRS =
 
 PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 
-BUILD_DIR := $(PWD)
-
 
 #################################################
 # Normally you would not need to edit below here
 #################################################
 
-VERSION ?= $(grep 'version=' metadata.txt | cut -d'=' -f2)
+VERSION := $(shell grep 'version=' metadata.txt | cut -d'=' -f2)
 
 HELP = help/build/html
 
@@ -86,7 +83,7 @@ default: test
 %.qm : %.ts
 	$(LRELEASE) $<
 
-test: transcompile
+test:
 	@echo
 	@echo "----------------------"
 	@echo "Regression Test Suite"
@@ -118,9 +115,6 @@ deploy: doc transcompile
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr i18n $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
-	# Copy extra directories if any
-  # (temporarily removed)
-
 
 # The dclean target removes compiled python files from plugin directory
 # also deletes any .git entry
@@ -131,7 +125,6 @@ dclean:
 	@echo "-----------------------------------"
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname "*.pyc" -delete
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname ".git" -prune -exec rm -Rf {} \;
-
 
 derase:
 	@echo
@@ -147,8 +140,9 @@ zip: deploy dclean
 	@echo "---------------------------"
 	# The zip target deploys the plugin and creates a zip file with the deployed
 	# content. You can then upload the zip file on http://plugins.qgis.org
-	rm -f $(PLUGINNAME).zip
-	cd $(HOME)/$(QGISDIR)/python/plugins; zip -9r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME)
+	mkdir -p dist/
+	rm -f dist/$(PLUGINNAME)-$(VERSION).zip
+	cd $(HOME)/$(QGISDIR)/python/plugins; zip -9r $(CURDIR)/dist/$(PLUGINNAME)-$(VERSION).zip $(PLUGINNAME)
 
 package:
 	# Create a zip package of the plugin named $(PLUGINNAME).zip.
@@ -160,16 +154,10 @@ package:
 	@echo "------------------------------------"
 	@echo "Exporting plugin to zip package.	"
 	@echo "------------------------------------"
-	rm -f $(PLUGINNAME).zip
-	git archive --prefix=$(PLUGINNAME)/ -o $(PLUGINNAME).zip $(VERSION)
-	echo "Created package: $(PLUGINNAME).zip"
-
-upload: zip
-	@echo
-	@echo "-------------------------------------"
-	@echo "Uploading plugin to QGIS Plugin repo."
-	@echo "-------------------------------------"
-	$(PLUGIN_UPLOAD) $(PLUGINNAME).zip
+	mkdir -p dist/
+	rm -f dist/$(PLUGINNAME)-$(VERSION).zip
+	git archive --prefix=$(PLUGINNAME)/ -o dist/$(PLUGINNAME)-$(VERSION).zip $(VERSION)
+	echo "Created package: dist/$(PLUGINNAME)-$(VERSION).zip"
 
 transup:
 	@echo
@@ -214,7 +202,6 @@ pylint:
 	@echo "e.g. source run-env-linux.sh <path to qgis install>; make pylint"
 	@echo "----------------------"
 
-
 # Run pep8 style checking
 #http://pypi.python.org/pypi/pep8
 pep8:
@@ -231,10 +218,18 @@ docker_build:
 	@docker build -t dymaxionlabs/massive-change-detection-test-env .
 
 docker_prepare:
-	@docker run -d --name qgis-env -v $(BUILD_DIR):/tests_directory/massive_change_detection -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
+	@docker run -d --name massive-change-detection-test-env -v $(CURDIR):/tests_directory/$(PLUGINNAME) -e DISPLAY=:99 dymaxionlabs/massive-change-detection-test-env
 	@sleep 3
-	@docker exec -it qgis-env sh -c "qgis_setup.sh massive_change_detection"
+	@docker exec -it massive-change-detection-test-env sh -c "qgis_setup.sh $(PLUGINNAME)"
 
 docker_run:
-	#@docker exec -it qgis-env sh -c "qgis_testrunner.sh massive_change_detection.test"
-	@docker exec -it qgis-env sh -c "cd /tests_directory/massive_change_detection && make test"
+	@docker exec -it massive-change-detection-test-env sh -c "cd /tests_directory/$(PLUGINNAME) && make test"
+
+clean:
+	rm -rf dist/
+
+publish: zip
+ifndef QGIS_REPOSITORY_PATH
+	$(error QGIS_REPOSITORY_PATH is undefined)
+endif
+	cp dist/$(PLUGINNAME)-$(VERSION).zip $(QGIS_REPOSITORY_PATH)/$(PLUGINNAME)/
