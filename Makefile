@@ -43,22 +43,21 @@ SOURCES = \
 	provider.py \
 	algorithm.py
 
-PLUGINNAME = MassiveChangeDetection
+PLUGINNAME = massive_change_detection
 
 PY_FILES = \
 	__init__.py \
 	massive_change_detection.py \
 	provider.py \
-	algorithm.py \
-	setup.py
+	algorithm.py
 
-UI_FILES = 
-
-EXTRAS = metadata.txt 
+EXTRAS = \
+	CHANGELOG.md \
+	LICENSE.md \
+	metadata.txt \
+	README.md
 
 EXTRA_DIRS =
-
-COMPILED_RESOURCE_FILES = 
 
 PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 
@@ -69,6 +68,8 @@ BUILD_DIR := $(PWD)
 # Normally you would not need to edit below here
 #################################################
 
+VERSION ?= $(grep 'version=' metadata.txt | cut -d'=' -f2)
+
 HELP = help/build/html
 
 PLUGIN_UPLOAD = $(c)/plugin_upload.py
@@ -77,9 +78,7 @@ RESOURCE_SRC=$(shell grep '^ *<file'  | sed 's@</file>@@g;s/.*>//g' | tr '\n' ' 
 
 QGISDIR=.qgis2
 
-default: compile
-
-compile: $(COMPILED_RESOURCE_FILES)
+default: test
 
 %.py : %.qrc $(RESOURCES_SRC)
 	pyrcc4 -o $*.py  $<
@@ -87,7 +86,7 @@ compile: $(COMPILED_RESOURCE_FILES)
 %.qm : %.ts
 	$(LRELEASE) $<
 
-test: compile
+test: transcompile
 	@echo
 	@echo "----------------------"
 	@echo "Regression Test Suite"
@@ -106,7 +105,7 @@ test: compile
 	@echo "e.g. source run-env-linux.sh <path to qgis install>; make test"
 	@echo "----------------------"
 
-deploy: compile doc transcompile
+deploy: doc transcompile
 	@echo
 	@echo "------------------------------------------"
 	@echo "Deploying plugin to your .qgis2 directory."
@@ -116,8 +115,6 @@ deploy: compile doc transcompile
 	# $HOME/$(QGISDIR)/python/plugins
 	mkdir -p $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(PY_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	cp -vf $(UI_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	cp -vf $(COMPILED_RESOURCE_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr i18n $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
@@ -153,7 +150,7 @@ zip: deploy dclean
 	rm -f $(PLUGINNAME).zip
 	cd $(HOME)/$(QGISDIR)/python/plugins; zip -9r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME)
 
-package: compile
+package:
 	# Create a zip package of the plugin named $(PLUGINNAME).zip.
 	# This requires use of git (your plugin development directory must be a
 	# git repository).
@@ -196,13 +193,6 @@ transclean:
 	@echo "Removing compiled translation files."
 	@echo "------------------------------------"
 	rm -f i18n/*.qm
-
-clean:
-	@echo
-	@echo "------------------------------------"
-	@echo "Removing uic and rcc generated files"
-	@echo "------------------------------------"
-	rm $(COMPILED_UI_FILES) $(COMPILED_RESOURCE_FILES)
 
 doc:
 	@echo
