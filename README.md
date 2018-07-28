@@ -44,7 +44,7 @@ plugin`.
 This is a *processing plugin*, you will have to enable the Processing Toolbox
 on QGIS to use it properly.
 
-### Generate change detection raster
+### Step 1: Generate change detection raster
 
 The first step is to generate a *change detection raster* based on two raster
 images.  The algorithm detects changes between the *"old"/"before" image* and
@@ -69,7 +69,7 @@ size for better results. Finally click `Run` to process the image.
 
 ![Screenshot 2](https://i.imgur.com/6WNgH3u.jpg)
 
-### Build report of changes
+### Step 2: Build report of changes
 
 The second step is to build a changed lots report based on a vector layer of
 lots and a change detection raster.  Lots vector layer must be in the same
@@ -78,10 +78,21 @@ projection as rasters.
 Select `Massive Change Detection -> Report -> Generate changed lots data` from
 the Processing Toolbox.
 
+Use your change detection raster (already generated on Step 1) on `Input change
+detection layer`, select one of your input raster images (`before.tif`, or
+`after.tif`) on `Input image layer`. Then set your lots vector layer on `Input
+lots vector layer` field, and select the lot id field on `Lot id field`.
+
 ![Screenshot 3](https://i.imgur.com/ynZjMMi.jpg)
 
-![Screenshot 4](https://i.imgur.com/wyEuBrJ.jpg)
+The selection threshold is related to the percentage of detected change in a
+particular lot.  For example, 0.5 means that a lot that has changed more than
+50% of its area is marked as *changed*.
 
+This algorithm will generate both a new vector layer of changed lots and a
+table (CSV) layer.
+
+![Screenshot 4](https://i.imgur.com/wyEuBrJ.jpg)
 
 ## Development
 
