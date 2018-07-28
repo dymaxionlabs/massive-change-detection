@@ -44,15 +44,43 @@ plugin`.
 This is a *processing plugin*, you will have to enable the Processing Toolbox
 on QGIS to use it properly.
 
-...
-
 ### Generate change detection raster
 
-...
+The first step is to generate a *change detection raster* based on two raster
+images.  The algorithm detects changes between the *"old"/"before" image* and
+the *"new"/"after" image* and generates a new binary raster of changes.
+
+Both input rasters must be coregistered and be of the same size and resolution.
+If you have images of different size and/or resolution, you will need to
+manually superimpose and clip them first.  You can use [Orfeo
+Toolbox](https://www.orfeo-toolbox.org/start/) to do this (see Superimpose).
+
+Suppose you have two raster layers loaded on QGIS: `before.tif` and
+`after.tif`.  Select `Massive Change Detection -> Pixel-based algorithms ->
+Multiband Difference` from the Processing Toolbox.
+
+![Screenshot 1](https://i.imgur.com/3d3whW0.jpg)
+
+Use `before.tif` layer on `Input old layer` and `after.tif` layer on `Input new
+layer`. You can use automatic thresholding (Otsu's method) or manually set a
+threshold by unchecking `Automatic thresholding` and choosing a proper value on
+`Threshold value`. You can adjust the post-processing filter and its kernel
+size for better results. Finally click `Run` to process the image.
+
+![Screenshot 2](https://i.imgur.com/6WNgH3u.jpg)
 
 ### Build report of changes
 
-...
+The second step is to build a changed lots report based on a vector layer of
+lots and a change detection raster.  Lots vector layer must be in the same
+projection as rasters.
+
+Select `Massive Change Detection -> Report -> Generate changed lots data` from
+the Processing Toolbox.
+
+![Screenshot 3](https://i.imgur.com/ynZjMMi.jpg)
+
+![Screenshot 4](https://i.imgur.com/wyEuBrJ.jpg)
 
 
 ## Development
@@ -81,6 +109,7 @@ source scripts/run-env-linux.sh /opt/qgis2
 ```
 
 Run tests and build code coverage reports with `make test`.
+
 
 ### I18n
 
